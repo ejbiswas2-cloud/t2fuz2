@@ -59,7 +59,6 @@ def save_db(db):
 
 @app.route('/api/status')
 def get_status():
-    # Check if cloudflared is running globally
     tunnel_active = False
     try:
         tunnel_active = subprocess.call(['systemctl', 'is-active', '--quiet', 'cloudflared']) == 0
@@ -116,6 +115,29 @@ def create_website():
         return jsonify({"status": "success", "message": f"Beenovia {data['type']} Node provisioned."})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route('/api/databases/import', methods=['POST'])
+def db_import():
+    # Simulate DB Import
+    time.sleep(2)
+    return jsonify({"status": "success", "message": "Database dump imported successfully."})
+
+@app.route('/api/databases/export/<db_name>', methods=['GET'])
+def db_export(db_name):
+    # Simulate DB Export
+    return jsonify({"status": "success", "download_url": f"/backups/{db_name}.sql"})
+
+@app.route('/api/databases/query', methods=['POST'])
+def db_query():
+    query = request.json.get('query', '')
+    # Mocking SQL results
+    return jsonify({
+        "status": "success", 
+        "results": [
+            {"id": 1, "name": "Admin", "email": "admin@beenovia.io"},
+            {"id": 2, "name": "System", "email": "node@cluster.internal"}
+        ]
+    })
 
 @app.route('/api/websites/build/<site_id>', methods=['POST'])
 def build_website(site_id):

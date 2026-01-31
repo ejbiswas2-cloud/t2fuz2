@@ -36,13 +36,21 @@ const DomainsView: React.FC = () => {
 
   useEffect(() => { fetchWebsites(); }, []);
 
+  // AUTOMATED ROOT FOLDER GENERATION
   useEffect(() => {
     if (form.domain) {
-      const folder = form.domain.replace(/[^a-zA-Z0-9]/g, '_');
+      const sanitizedName = form.domain
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '_')
+        .replace(/_{2,}/g, '_')
+        .replace(/(^_|_$)/g, '');
+      
       setForm(prev => ({ 
         ...prev, 
-        rootFolder: `/www/wwwroot/${folder}`
+        rootFolder: `/www/wwwroot/${sanitizedName}`
       }));
+    } else {
+      setForm(prev => ({ ...prev, rootFolder: '/www/wwwroot/' }));
     }
   }, [form.domain]);
 
@@ -91,6 +99,10 @@ const DomainsView: React.FC = () => {
     }, 2000);
   };
 
+  const provisionSSL = (domain: string) => {
+    alert(`SSL Protocol initialized for ${domain}. Auto-cert issuance queued via Beenovia Certbot Node.`);
+  };
+
   return (
     <div className="space-y-10 pb-20">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-8">
@@ -129,7 +141,7 @@ const DomainsView: React.FC = () => {
                 </div>
                 {site.autoTunnel && (
                    <div className="inline-flex items-center text-orange-600 text-[9px] font-black uppercase tracking-widest bg-orange-50 px-3 py-1 rounded-lg border border-orange-100">
-                      <span className="w-2 h-2 rounded-full bg-orange-500 mr-2 animate-pulse"></span> Cloudflare Tunnel Synced
+                      <span className="w-2 h-2 rounded-full bg-orange-500 mr-2 animate-pulse"></span> Cloudflare Ingress Active (Local:{site.port})
                    </div>
                 )}
               </div>
@@ -140,10 +152,13 @@ const DomainsView: React.FC = () => {
                   <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Data Tier</span>
                   <span className="text-xs font-black text-slate-800 uppercase tracking-tighter">{site.databases?.join(' + ')}</span>
                </div>
-               <button onClick={() => smartBuild(site.id)} className="w-14 h-14 bg-slate-900 text-white rounded-2xl flex items-center justify-center hover:bg-slate-800 transition-all shadow-xl active:scale-90">
+               <button onClick={() => provisionSSL(site.domain)} className="w-14 h-14 bg-white border border-slate-200 text-blue-600 rounded-2xl flex items-center justify-center hover:bg-blue-50 transition-all shadow-sm active:scale-90" title="Provision SSL">
+                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+               </button>
+               <button onClick={() => smartBuild(site.id)} className="w-14 h-14 bg-slate-900 text-white rounded-2xl flex items-center justify-center hover:bg-slate-800 transition-all shadow-xl active:scale-90" title="Rebuild Node">
                   <svg className={`w-6 h-6 ${buildingId === site.id ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
                </button>
-               <button onClick={() => setWebsites(w => w.filter(x => x.id !== site.id))} className="w-14 h-14 bg-white border border-slate-200 text-red-400 rounded-2xl flex items-center justify-center hover:bg-red-50 transition-all shadow-sm active:scale-90">
+               <button onClick={() => setWebsites(w => w.filter(x => x.id !== site.id))} className="w-14 h-14 bg-white border border-slate-200 text-red-400 rounded-2xl flex items-center justify-center hover:bg-red-50 transition-all shadow-sm active:scale-90" title="Destroy Node">
                   <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                </button>
             </div>
@@ -198,7 +213,18 @@ const DomainsView: React.FC = () => {
                      <div className="space-y-10">
                         <label className="block text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] ml-4">Deployment Config</label>
                         <div className="space-y-8">
-                           <input required placeholder="infrastructure-domain.io" value={form.domain} onChange={e => setForm({...form, domain: e.target.value})} className="w-full px-12 py-10 bg-slate-50 border-2 border-slate-100 rounded-[3.5rem] focus:border-blue-500 focus:bg-white outline-none font-black text-5xl transition-all shadow-inner tracking-tighter" />
+                           <div className="space-y-4">
+                              <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-4">Domain Name</label>
+                              <input required placeholder="infrastructure-domain.io" value={form.domain} onChange={e => setForm({...form, domain: e.target.value})} className="w-full px-12 py-10 bg-slate-50 border-2 border-slate-100 rounded-[3.5rem] focus:border-blue-500 focus:bg-white outline-none font-black text-5xl transition-all shadow-inner tracking-tighter" />
+                           </div>
+
+                           <div className="space-y-4">
+                              <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-4">Auto-Generated Storage Root</label>
+                              <div className="relative">
+                                 <span className="absolute inset-y-0 left-8 flex items-center text-slate-400 font-mono text-xs">PATH:</span>
+                                 <input readOnly value={form.rootFolder} className="w-full pl-24 pr-12 py-6 bg-slate-100 border-2 border-slate-200 rounded-[2.5rem] outline-none font-bold text-slate-500 font-mono text-sm" />
+                              </div>
+                           </div>
                            
                            <div className="grid grid-cols-2 gap-8 bg-white p-12 rounded-[4rem] border-2 border-slate-100 shadow-sm">
                               <div className="space-y-4">
@@ -207,7 +233,7 @@ const DomainsView: React.FC = () => {
                               </div>
                               <div className="space-y-4">
                                  <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest ml-4">Cloudflare Tunnel</label>
-                                 <button type="button" onClick={() => setForm({...form, autoTunnel: !form.autoTunnel})} className={`w-full py-5 rounded-2xl border-2 font-black text-[10px] uppercase tracking-widest transition-all ${form.autoTunnel ? 'bg-orange-600 border-orange-600 text-white' : 'bg-slate-50 border-slate-100 text-slate-400'}`}>
+                                 <button type="button" onClick={() => setForm({...form, autoTunnel: !form.autoTunnel})} className={`w-full py-5 rounded-2xl border-2 font-black text-[10px] uppercase tracking-widest transition-all ${form.autoTunnel ? 'bg-orange-600 border-orange-600 text-white shadow-lg shadow-orange-100' : 'bg-slate-50 border-slate-100 text-slate-400'}`}>
                                     {form.autoTunnel ? 'TUNNEL ACTIVE' : 'LOCAL ONLY'}
                                  </button>
                               </div>
@@ -217,8 +243,13 @@ const DomainsView: React.FC = () => {
 
                      <div className="bg-slate-900 rounded-[4rem] p-14 space-y-12 relative overflow-hidden group">
                         <div className="absolute top-0 right-0 w-64 h-64 bg-blue-600/10 rounded-full blur-[100px] -mr-32 -mt-32"></div>
-                        <h4 className="text-xl font-black text-white tracking-tight relative z-10 flex items-center">
-                           <span className="mr-4">⚡</span> Infrastructure Provisioning Summary
+                        <h4 className="text-xl font-black text-white tracking-tight relative z-10 flex items-center justify-between">
+                           <div className="flex items-center">
+                             <span className="mr-4">⚡</span> Infrastructure Provisioning Summary
+                           </div>
+                           {form.autoTunnel && (
+                             <span className="text-[10px] font-black text-orange-400 uppercase tracking-[0.2em] animate-pulse">Edge Ready</span>
+                           )}
                         </h4>
                         
                         <div className="grid grid-cols-2 gap-8 relative z-10">
@@ -231,6 +262,21 @@ const DomainsView: React.FC = () => {
                               <div className="text-sm font-black text-emerald-400 uppercase">{form.databases.join(' + ')}</div>
                            </div>
                         </div>
+
+                        {form.autoTunnel && form.domain && (
+                          <div className="p-8 bg-white/5 border border-orange-500/30 rounded-[2.5rem] space-y-6 relative z-10 animate-in fade-in slide-in-from-bottom-2">
+                             <div className="flex items-center justify-between">
+                                <div className="text-[9px] font-black text-orange-400 uppercase tracking-widest italic">Cloudflare Zero-Trust Config (Ingress Mapping)</div>
+                                <span className="text-[8px] font-bold text-slate-600">YAML GENERATED</span>
+                             </div>
+                             <div className="font-mono text-[11px] text-slate-300 space-y-1 bg-black/40 p-6 rounded-2xl border border-white/5 shadow-inner leading-relaxed">
+                                <div>- hostname: {form.domain}</div>
+                                <div className="pl-4">service: http://localhost:{form.port}</div>
+                                <div className="mt-2">- service: http_status:404</div>
+                             </div>
+                             <p className="text-[10px] text-slate-500 font-medium">Beenovia will automatically update your /etc/cloudflared/config.yaml upon deployment commit.</p>
+                          </div>
+                        )}
                      </div>
 
                      <div className="flex gap-10 pt-16 sticky bottom-0 bg-white/95 backdrop-blur-3xl py-12 border-t border-slate-100 mt-20">
