@@ -6,30 +6,49 @@
 
 set -e
 
-echo "🚀 Starting Beenovia Installation..."
+# Setup high-visibility colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+echo -e "${BLUE}🚀 Starting Beenovia Installation...${NC}"
 
 # --- Pre-flight Network Check ---
-echo "🔍 Checking internet connectivity..."
-if ! curl -s --head  --request GET https://pypi.org | grep "200 OK" > /dev/null; then
-    echo "❌ ERROR: Cannot reach pypi.org. Your network is unreachable."
-    echo "💡 TROUBLESHOOTING:"
-    echo "   1. Check if your server has a public internet connection."
-    echo "   2. Run: 'ping 8.8.8.8' to check basic routing."
-    echo "   3. Check DNS: 'cat /etc/resolv.conf'. Ensure it has 'nameserver 8.8.8.8'."
-    echo "   4. If you are behind a proxy, export HTTPS_PROXY before running this script."
+echo -e "${BLUE}🔍 Checking internet connectivity & DNS...${NC}"
+
+# 1. Check DNS resolution first (Fast fail)
+if ! nslookup pypi.org > /dev/null 2>&1 && ! host pypi.org > /dev/null 2>&1; then
+    echo -e "${RED}❌ ERROR: DNS Resolution Failed.${NC}"
+    echo -e "${YELLOW}💡 FIX: Your server cannot resolve domain names.${NC}"
+    echo "   Run: echo 'nameserver 8.8.8.8' | sudo tee /etc/resolv.conf"
+    echo "   Then try the installer again."
     exit 1
 fi
 
+# 2. Check HTTP connectivity with 5-second timeout to prevent hanging
+if ! curl -s --connect-timeout 5 --max-time 10 --head https://pypi.org > /dev/null; then
+    echo -e "${RED}❌ ERROR: Network Unreachable (Timeout).${NC}"
+    echo -e "${YELLOW}💡 TROUBLESHOOTING:${NC}"
+    echo "   1. Ensure your server has outbound internet access (Port 443)."
+    echo "   2. Check your VPC/Security Group rules."
+    echo "   3. Try pinging a global IP: ping -c 3 1.1.1.1"
+    exit 1
+fi
+
+echo -e "${GREEN}✅ Network and DNS Verified.${NC}"
+
 # 1. Update System
-echo "🔄 Updating system packages..."
+echo -e "${BLUE}🔄 Updating system packages...${NC}"
 sudo apt update && sudo apt upgrade -y
 
 # 2. Install Dependencies
-echo "📦 Installing Python, Node.js, and essential tools..."
-sudo apt install -y python3 python3-pip python3-venv curl wget git nginx certbot python3-certbot-nginx mariadb-server redis-server ufw
+echo -e "${BLUE}📦 Installing Python, Node.js, and essential tools...${NC}"
+sudo apt install -y python3 python3-pip python3-venv curl wget git nginx certbot python3-certbot-nginx mariadb-server redis-server ufw dnsutils
 
 # 3. Install Cloudflare Tunnel (cloudflared)
-echo "☁️ Installing Cloudflare Tunnel..."
+echo -e "${BLUE}☁️ Installing Cloudflare Tunnel...${NC}"
 if ! command -v cloudflared &> /dev/null; then
     curl -L --output cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
     sudo dpkg -i cloudflared.deb
@@ -37,20 +56,25 @@ if ! command -v cloudflared &> /dev/null; then
 fi
 
 # 4. Setup Project Directory
-echo "📂 Setting up project directory..."
+echo -e "${BLUE}📂 Setting up project directory...${NC}"
 sudo mkdir -p /opt/beenovia
 sudo cp -r . /opt/beenovia || true
 cd /opt/beenovia
 
 # 5. Setup Python Environment
-echo "🐍 Setting up Python backend..."
+echo -e "${BLUE}🐍 Setting up Python backend...${NC}"
 sudo python3 -m venv venv
-# Using --timeout and --retries to handle flaky connections
+
+# Set pip global timeouts to prevent hanging during package installs
+export PIP_DEFAULT_TIMEOUT=100
+export PIP_RETRIES=10
+
+echo -e "${BLUE}📥 Installing Python requirements...${NC}"
 sudo ./venv/bin/pip install --upgrade pip
-sudo ./venv/bin/pip install --timeout 60 --retries 10 flask flask-cors psutil
+sudo ./venv/bin/pip install flask flask-cors psutil
 
 # 6. Create Systemd Service for Dashboard
-echo "⚙️ Creating systemd service..."
+echo -e "${BLUE}⚙️ Creating systemd service...${NC}"
 sudo bash -c 'cat <<EOF > /etc/systemd/system/beenovia.service
 [Unit]
 Description=Beenovia Server Manager Dashboard
@@ -67,15 +91,15 @@ WantedBy=multi-user.target
 EOF'
 
 # 7. Start Services
-echo "🚀 Starting Beenovia Services..."
+echo -e "${BLUE}🚀 Starting Beenovia Services...${NC}"
 sudo systemctl daemon-reload
 sudo systemctl enable beenovia
 sudo systemctl start beenovia
 
-echo "------------------------------------------------"
-echo "✅ Beenovia Installation Complete!"
-echo "Dashboard: http://$(hostname -I | awk '{print $1}'):9100"
-echo "------------------------------------------------"
-echo "Username: admin"
-echo "Password: beenovia_secret"
-echo "------------------------------------------------"
+echo -e "${GREEN}------------------------------------------------${NC}"
+echo -e "${GREEN}✅ Beenovia Installation Complete!${NC}"
+echo -e "Dashboard: ${BLUE}http://$(hostname -I | awk '{print $1}'):9100${NC}"
+echo -e "${GREEN}------------------------------------------------${NC}"
+echo -e "Username: ${BLUE}admin${NC}"
+echo -e "Password: ${BLUE}beenovia_secret${NC}"
+echo -e "${GREEN}------------------------------------------------${NC}"

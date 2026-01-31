@@ -10,11 +10,15 @@ const DocsView: React.FC = () => {
   const installCommand = `curl -sSL https://raw.githubusercontent.com/ejbiswas2-c/beenovia/main/install.sh | sudo bash`;
 
   const networkTroubleshooting = `
-# If you see 'Network is unreachable' during install:
-1. Check DNS: sudo nano /etc/resolv.conf
-   Add: nameserver 8.8.8.8
-2. Check Gateway: ip route show
-3. Test Ping: ping -c 4 pypi.org
+# IF INSTALLER IS STUCK ON 'CHECKING INTERNET':
+1. DNS FIX:
+   echo 'nameserver 8.8.8.8' | sudo tee /etc/resolv.conf
+
+2. FIREWALL CHECK:
+   Ensure Port 443 (Outbound) is open.
+
+3. MANUAL TEST:
+   curl -I --connect-timeout 5 https://pypi.org
 `;
 
   return (
@@ -70,8 +74,8 @@ const DocsView: React.FC = () => {
               </button>
             </div>
           </div>
-          <div className="bg-red-500/10 border border-red-500/20 p-6 rounded-3xl relative z-10">
-             <h4 className="text-[10px] font-black text-red-400 uppercase tracking-widest mb-2 italic">Network Error Fix?</h4>
+          <div className="bg-amber-500/10 border border-amber-500/20 p-6 rounded-3xl relative z-10">
+             <h4 className="text-[10px] font-black text-amber-400 uppercase tracking-widest mb-2 italic">Installer Stuck?</h4>
              <pre className="text-[9px] text-slate-400 font-mono leading-tight whitespace-pre-wrap italic">
                {networkTroubleshooting}
              </pre>
@@ -88,15 +92,15 @@ const DocsView: React.FC = () => {
               <h2 className="text-4xl font-black text-slate-900 tracking-tight">Installation Logic</h2>
             </div>
             <p className="text-slate-600 leading-relaxed font-medium text-lg italic">
-              "The install.sh performs a pre-flight connectivity check to ensure pypi.org is reachable before provisioning Python environments."
+              "The install.sh performs an optimized pre-flight connectivity check. It fails fast (5s) instead of hanging if the network is unreachable."
             </p>
             <div className="bg-slate-50 p-8 rounded-[2.5rem] border border-slate-100">
                <ul className="space-y-4">
                   {[
-                    "Verifies internet routing via curl",
-                    "Updates apt repositories and system binaries",
+                    "Verifies DNS resolution for pypi.org",
+                    "Checks HTTP connectivity with 5s timeout",
                     "Provisions Cloudflare Tunnel (cloudflared)",
-                    "Creates isolated Python venv and installs dependencies",
+                    "Creates isolated Python venv with high-timeout pip config",
                     "Registers 'beenovia.service' in systemd"
                   ].map((step, i) => (
                     <li key={i} className="flex items-center space-x-4 text-sm font-bold text-slate-700">
