@@ -1,0 +1,7 @@
+{
+  "name": "Beenovia Server Manager",
+  "description": "Professional server management suite with multi-runtime support, database clusters, and one-click Cloudflare Zero-Trust Tunnels.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
